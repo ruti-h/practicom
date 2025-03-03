@@ -1,4 +1,4 @@
-namespace music
+namespace Matchmaking
 {
     public class WeatherForecast
     {

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace music.Controllers
+namespace Matchmaking.Controllers
 {
     [ApiController]
     [Route("[controller]")]
