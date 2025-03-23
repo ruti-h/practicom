@@ -44,3 +44,4 @@ namespace Cheers.Api.Controllers
             return Ok(new { Token = token });
         }
     }
+}

@@ -1,3 +1,5 @@
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.S3;
 using Cheers.Api;
 using Cheers.Core;
 using Cheers.Core.IRepository;
@@ -5,8 +7,13 @@ using Cheers.Core.IServices;
 using Cheers.Data;
 using Cheers.Data.Repositories;
 using Cheers.Service.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +44,53 @@ builder.Services.AddScoped<IServiceMatchMaker, MatchMakerService>();
 builder.Services.AddScoped<IServiceMeeting, MeetingService>();
 builder.Services.AddScoped<IServiceWoman, WomanService>();
 
+builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
+builder.Services.AddSingleton<IAmazonS3>(serviceProvider =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<AWSOptions>>().Value;
+
+    // הגדרת Credentials באופן ידני
+    var credentials = new Amazon.Runtime.BasicAWSCredentials(
+        builder.Configuration["AWS:AccessKey"],
+        builder.Configuration["AWS:SecretKey"]
+    );
+
+    // הגדרת Region
+    var region = Amazon.RegionEndpoint.GetBySystemName(builder.Configuration["AWS:Region"]);
+
+    return new AmazonS3Client(credentials, region);
+});
+
+
+
+// הוספת JWT Authentication
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+});
+
+// הוספת הרשאות מבוססות-תפקידים
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("MatchmakerOrAdmin", policy => policy.RequireRole("Matchmaker", "Admin"));
+    options.AddPolicy("MaleOrMatchmaker", policy => policy.RequireRole("Male", "Matchmaker"));
+    options.AddPolicy("WomenOrMatchmaker", policy => policy.RequireRole("Women", "Matchmaker"));
+});
 // רישום Swagger
 builder.Services.AddSwaggerGen(c =>
 {

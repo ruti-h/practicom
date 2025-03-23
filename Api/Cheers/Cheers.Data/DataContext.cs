@@ -19,7 +19,8 @@ namespace Cheers.Data
         public DbSet<MatchMaking> MatchMakings { get; set; }
         public DbSet<Meeting> Meetings { get; set; }
         public DbSet<User> Users { get; set; }
-        
+      
+
         //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         //{
         //    base.OnConfiguring(optionsBuilder);

@@ -10,12 +10,9 @@ namespace Cheers.Core.Entities
     {
 
         public int Id { get; set; }
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Email { get; set; }
-        public string Password { get; set; } // יש לבצע הצפנה לסיסמאות
+        public string Username { get; set; } = string.Empty;
+        public string PasswordHash { get; set; } = string.Empty; // נשמור רק את ה-Hash של הסיסמה
+        public string Role { get; set; } = "User"; // ברירת מחדל: משתמש רגיל
 
-        public UserRole Role { get; set; } // הוספת תפקיד
-        
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Cheers.Core.Entities;
 using Cheers.Data;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
@@ -13,57 +14,37 @@ namespace Cheers.Service.Services
 {
     public class AuthService
     {
-        private readonly DataContext _context;
-        private readonly string _secretKey; // מפתח סודי
-        private readonly string _issuer; // המנפיק
-        private readonly string _audience; // הקהל
-        public AuthService(DataContext context)
+        private readonly IConfiguration _configuration;
+
+        public AuthService(IConfiguration configuration)
         {
-            _context = context;
-            _secretKey = "YourSuperSecretKey"; // יש להחליף למפתח סודי אמיתי
-            _issuer = "YourIssuer"; // המנפיק
-            _audience = "YourAudience"; // הקהל
+            _configuration = configuration;
         }
 
-        public void RegisterUser(User user)
+        public string GenerateJwtToken(string username, string[] roles)
         {
-            // בדוק אם המשתמש כבר קיים
-            if (_context.Users.Any(u => u.Email == user.Email))
-            {
-                throw new Exception("User already exists.");
-            }
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-            // הוסף את המשתמש לבסיס הנתונים
-            _context.Users.Add(user);
-            _context.SaveChanges();
-        }
-
-        public User GetUserByEmail(string email)
+            var claims = new List<Claim>
         {
-            return _context.Users.FirstOrDefault(u => u.Email == email);
-        }
-
-        public string GenerateJwtToken(User user)
-        {
-            var claims = new[]
-       {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Email),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(ClaimTypes.Name, username)
         };
 
-            // יצירת מפתח סודי
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
 
-            // יצירת טוקן
             var token = new JwtSecurityToken(
-                issuer: _issuer,
-                audience: _audience,
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddMinutes(30), // תוקף הטוקן
-                signingCredentials: creds);
+                expires: DateTime.Now.AddMinutes(30),
+                signingCredentials: credentials
+            );
 
-            return new JwtSecurityTokenHandler().WriteToken(token); // החזרת הטוקן
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }
